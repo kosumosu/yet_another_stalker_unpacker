@@ -1,14 +1,13 @@
 use std::collections::HashMap;
-use std::error::Error;
-use std::io::{Cursor, SeekFrom};
-use std::ops::Deref;
+use std::io::{Cursor, Read, SeekFrom};
+use std::io::ErrorKind::UnexpectedEof;
 use std::path::{PathBuf};
 use std::time::Instant;
 use clap::{arg, Parser};
 use delharc::decode::{Decoder, Lh1Decoder};
 use encoding_rs::{Encoding, UTF_8};
 use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt};
 use futures::future::join_all;
 use crate::archive_header::{FileDescriptor, read_file_descriptors};
 
@@ -46,15 +45,15 @@ async fn read_archive_header(archive_file_name: PathBuf, encoding: &'static Enco
         .write(false)
         .open(archive_file_name.as_path()).await.expect(format!("Failed to open archive {}", archive_file_name.to_str().unwrap()).as_str());
 
-    let archive_len = file.metadata().await.unwrap().len();
-
-    let mut archive_pos = 0u64;
-
     let mut file_descriptors = None;
     let mut root_path = "".to_string();
 
-    while archive_pos < archive_len {
-        let raw_chunk_id = file.read_u32_le().await.unwrap();
+    loop {
+        let raw_chunk_id = match file.read_u32_le().await {
+            Ok(data) => data,
+            Err(err) if err.kind() == UnexpectedEof => break,
+            Err(err) => panic!("Error reading file: {}", err)
+        };
         let chunk_size = file.read_u32_le().await.unwrap();
         let chunk_usize = usize::try_from(chunk_size).unwrap();
 
@@ -65,29 +64,7 @@ async fn read_archive_header(archive_file_name: PathBuf, encoding: &'static Enco
         match chunk_id {
             0x1 | 0x86 => {
                 // File descriptors list
-                let chunk_data = match compressed {
-                    true => {
-                        let decoded_len = file.read_u32_le().await.unwrap();
-                        let mut compressed_buf = vec![0u8; chunk_usize - 4usize];
-                        file.read_exact(&mut compressed_buf.as_mut_slice()).await.unwrap();
-
-                        archive_pos += 12u64; // chunk id (aka dwType), size, and decoded size fields
-                        archive_pos += chunk_size as u64;
-
-                        let mut res = Lh1Decoder::new(compressed_buf.as_slice());
-
-                        let mut decompressed_buf = vec![0u8; decoded_len as usize];
-                        res.fill_buffer(&mut decompressed_buf).unwrap();
-
-                        decompressed_buf
-                    }
-                    false => {
-                        let mut raw_buf = vec![0u8; chunk_usize];
-                        file.read_exact(&mut raw_buf.as_mut_slice()).await.unwrap();
-
-                        raw_buf
-                    }
-                };
+                let chunk_data = read_chunk(&mut file, chunk_usize, compressed).await;
 
                 let mut reader = Cursor::new(chunk_data.as_slice());
 
@@ -98,15 +75,37 @@ async fn read_archive_header(archive_file_name: PathBuf, encoding: &'static Enco
             // }
             _ => {
                 // Skip
-                let seek_operation = file.seek(SeekFrom::Current(i64::try_from(chunk_size).unwrap()));
-                archive_pos = seek_operation.await.unwrap();
+                file.seek(SeekFrom::Current(i64::try_from(chunk_size).unwrap())).await.unwrap();
             }
         }
     }
 
-    return  match file_descriptors {
+    return match file_descriptors {
         Some(file_descriptors) => Some(ArchiveHeader { archive_path: archive_file_name, output_root_path: root_path, files: file_descriptors }),
         _ => None
+    };
+}
+
+async fn read_chunk<T: AsyncRead + Unpin>(file: &mut T, chunk_usize: usize, compressed: bool) -> Vec<u8> {
+    match compressed {
+        true => {
+            let decoded_len = file.read_u32_le().await.unwrap();
+            let mut compressed_buf = vec![0u8; chunk_usize - 4usize];
+            file.read_exact(&mut compressed_buf.as_mut_slice()).await.unwrap();
+
+            let mut res = Lh1Decoder::new(compressed_buf.as_slice());
+
+            let mut decompressed_buf = vec![0u8; decoded_len as usize];
+            res.fill_buffer(&mut decompressed_buf).unwrap();
+
+            decompressed_buf
+        }
+        false => {
+            let mut raw_buf = vec![0u8; chunk_usize];
+            file.read_exact(&mut raw_buf.as_mut_slice()).await.unwrap();
+
+            raw_buf
+        }
     }
 }
 
@@ -171,7 +170,6 @@ async fn main() {
         let total_file_count = archive_headers.iter().fold(0, |acc, i| acc + i.as_ref().map_or(0, |x| x.files.len()));
 
         println!("Total files: {total_file_count}");
-
     } else if args.input_archive.is_some() {
         let path_str = args.input_archive.unwrap();
         let path = PathBuf::from(path_str);
