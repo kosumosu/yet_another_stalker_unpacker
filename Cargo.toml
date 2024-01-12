@@ -12,3 +12,4 @@ delharc = { path = "../rust-delharc", features = ["lh1"] }
 byteorder = "1.5.0"
 futures = "0.3.30"
 encoding_rs = "0.8.33"
+regex = "1.10.2"
