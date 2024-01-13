@@ -866,6 +866,7 @@ dependencies = [
  "delharc",
  "encoding_rs",
  "futures",
+ "log",
  "regex",
  "tokio",
 ]

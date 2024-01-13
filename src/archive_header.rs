@@ -6,11 +6,11 @@ use encoding_rs::{Encoding};
 
 #[derive(Debug, Clone)]
 pub struct FileDescriptor {
-    name: String,
-    offset: u32,
-    real_size: u32,
-    compressed_size: u32,
-    crc: u32,
+    pub name: String,
+    pub offset: u32,
+    pub real_size: u32,
+    pub compressed_size: u32,
+    pub crc: u32,
 }
 
 pub fn read_file_descriptors<T: Read>(reader: &mut T, encoding: &'static Encoding) -> Result<HashMap<String, FileDescriptor>, Error> {
