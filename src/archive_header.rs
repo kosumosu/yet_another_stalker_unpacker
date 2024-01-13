@@ -5,7 +5,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use encoding_rs::{Encoding};
 
 #[derive(Debug, Clone)]
-pub(crate) struct FileDescriptor {
+pub struct FileDescriptor {
     name: String,
     offset: u32,
     real_size: u32,
@@ -13,7 +13,7 @@ pub(crate) struct FileDescriptor {
     crc: u32,
 }
 
-pub(crate) fn read_file_descriptors<T: Read>(reader: &mut T, encoding: &'static Encoding) -> Result<HashMap<String, FileDescriptor>, Error> {
+pub fn read_file_descriptors<T: Read>(reader: &mut T, encoding: &'static Encoding) -> Result<HashMap<String, FileDescriptor>, Error> {
     let mut file_descriptors = HashMap::new();
 
     let mut name_buf = [0u8; 260 * 2]; // MAX_PATH * 2
