@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use tokio::fs;
 use std::io::ErrorKind::UnexpectedEof;
 use std::io::{Cursor, SeekFrom};
+use std::sync::Arc;
 use delharc::decode::{Decoder, Lh1Decoder};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt};
 use crate::archive_header::{FileDescriptor, read_file_descriptors};
@@ -16,7 +17,7 @@ const CHUNK_ID_MASK: u32 = !(1 << 31);
 pub struct ArchiveHeader {
     pub archive_path: PathBuf,
     pub output_root_path: String,
-    pub files: HashMap<String, FileDescriptor>,
+    pub files: HashMap<Arc<String>, FileDescriptor>,
 }
 
 pub struct ArchiveReader {

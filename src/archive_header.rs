@@ -1,19 +1,20 @@
 use std::collections::HashMap;
 use std::io::{Error, Read};
 use std::io::ErrorKind::UnexpectedEof;
+use std::sync::Arc;
 use byteorder::{LittleEndian, ReadBytesExt};
 use encoding_rs::{Encoding};
 
 #[derive(Debug, Clone)]
 pub struct FileDescriptor {
-    pub name: String,
+    pub name: Arc<String>,
     pub offset: u32,
     pub real_size: u32,
     pub compressed_size: u32,
     pub crc: u32,
 }
 
-pub fn read_file_descriptors<T: Read>(reader: &mut T, encoding: &'static Encoding) -> Result<HashMap<String, FileDescriptor>, Error> {
+pub fn read_file_descriptors<T: Read>(reader: &mut T, encoding: &'static Encoding) -> Result<HashMap<Arc<String>, FileDescriptor>, Error> {
     let mut file_descriptors = HashMap::new();
 
     let mut name_buf = [0u8; 260 * 2]; // MAX_PATH * 2
@@ -48,7 +49,9 @@ pub fn read_file_descriptors<T: Read>(reader: &mut T, encoding: &'static Encodin
             panic!("Had errors decoding file name '{}' raw bytes: {:?}", name, &name_bytes);
         }
 
-        file_descriptors.insert(name.to_string(), FileDescriptor { name: name.to_string(), offset, real_size, compressed_size, crc });
+        let name = Arc::new(name.to_string());
+
+        file_descriptors.insert(name.clone(), FileDescriptor { name, offset, real_size, compressed_size, crc });
     }
 
     Ok(file_descriptors)
