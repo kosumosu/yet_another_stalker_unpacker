@@ -1,19 +1,15 @@
-use log::Level;
-
-pub struct StdErrLogger {
-    max_level: Level
-}
+pub struct StdErrLogger;
 
 impl StdErrLogger {
-    pub const fn new(max_level: Level) -> StdErrLogger {
-        StdErrLogger { max_level }
+    pub const fn new() -> StdErrLogger {
+        StdErrLogger
     }
 }
 
 
 impl log::Log for StdErrLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= self.max_level
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
+        true
     }
 
     fn log(&self, record: &log::Record) {

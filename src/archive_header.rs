@@ -5,7 +5,7 @@ use std::sync::Arc;
 use byteorder::{LittleEndian, ReadBytesExt};
 use encoding_rs::{Encoding};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FileDescriptor {
     pub name: Arc<String>,
     pub offset: u32,

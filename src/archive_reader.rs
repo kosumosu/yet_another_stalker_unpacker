@@ -13,7 +13,7 @@ use crate::archive_header::{FileDescriptor, read_file_descriptors};
 const CHUNK_ID_COMPRESSED_MASK: u32 = 1 << 31;
 const CHUNK_ID_MASK: u32 = !(1 << 31);
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ArchiveHeader {
     pub archive_path: PathBuf,
     pub output_root_path: String,
