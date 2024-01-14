@@ -242,6 +242,7 @@ dependencies = [
 [[package]]
 name = "delharc"
 version = "0.5.0"
+source = "git+https://github.com/kosumosu/rust-delharc.git?branch=xray-16#8e31f5f779c043837a0007c4a9a1878e56952859"
 dependencies = [
  "bitflags 2.4.1",
  "chrono",
